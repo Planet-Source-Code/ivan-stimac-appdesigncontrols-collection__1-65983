@@ -1,0 +1,264 @@
+VERSION 5.00
+Begin VB.PropertyPage imageListPropPage 
+   Caption         =   "Images"
+   ClientHeight    =   2460
+   ClientLeft      =   0
+   ClientTop       =   0
+   ClientWidth     =   6555
+   PaletteMode     =   0  'Halftone
+   ScaleHeight     =   2460
+   ScaleWidth      =   6555
+   Begin VB.CommandButton ButtRemove 
+      Caption         =   "Remove Image"
+      Height          =   375
+      Left            =   4680
+      TabIndex        =   6
+      Top             =   1740
+      Width           =   1695
+   End
+   Begin VB.CommandButton buttAdd 
+      Caption         =   "Add Image"
+      Height          =   375
+      Left            =   2820
+      TabIndex        =   5
+      Top             =   1740
+      Width           =   1695
+   End
+   Begin VB.TextBox txtIndex 
+      Height          =   315
+      Left            =   660
+      TabIndex        =   4
+      Text            =   "0"
+      Top             =   180
+      Width           =   1035
+   End
+   Begin VB.PictureBox pcMain 
+      Height          =   915
+      Left            =   180
+      ScaleHeight     =   855
+      ScaleWidth      =   6135
+      TabIndex        =   0
+      Top             =   720
+      Width           =   6195
+      Begin VB.HScrollBar hSCR 
+         Enabled         =   0   'False
+         Height          =   255
+         Left            =   0
+         TabIndex        =   2
+         Top             =   600
+         Width           =   6135
+      End
+      Begin VB.PictureBox pcContainer 
+         Appearance      =   0  'Flat
+         BorderStyle     =   0  'None
+         ForeColor       =   &H80000008&
+         Height          =   615
+         Left            =   0
+         ScaleHeight     =   615
+         ScaleWidth      =   4035
+         TabIndex        =   1
+         Top             =   0
+         Width           =   4035
+         Begin VB.Image itmIMG 
+            Appearance      =   0  'Flat
+            BorderStyle     =   1  'Fixed Single
+            Height          =   555
+            Index           =   0
+            Left            =   0
+            Stretch         =   -1  'True
+            Top             =   0
+            Visible         =   0   'False
+            Width           =   555
+         End
+      End
+   End
+   Begin VB.Image pcTMP 
+      Height          =   375
+      Index           =   0
+      Left            =   2640
+      Top             =   180
+      Visible         =   0   'False
+      Width           =   495
+   End
+   Begin VB.Label Label1 
+      Caption         =   "Index"
+      Height          =   255
+      Left            =   120
+      TabIndex        =   3
+      Top             =   240
+      Width           =   2055
+   End
+End
+Attribute VB_Name = "imageListPropPage"
+Attribute VB_GlobalNameSpace = False
+Attribute VB_Creatable = False
+Attribute VB_PredeclaredId = False
+Attribute VB_Exposed = False
+Private mCount As Integer, mX As Integer, selInd As Integer
+Dim iLst As ImageList
+
+
+
+
+Private Sub buttAdd_Click()
+    Dim strFile As String
+    strFile = SelectFile$(hWnd, "Browse Picture", "Pictures (*.bmp;*.dib;*.gif;*.ico;*.jpg;*.rle)|*.bmp;*.dib;*.gif;*.ico;*.jpg;*.rle|All Files (*.*)|*.*", 0, "", "", "BMP", fdmOpenFile)
+    
+    If strFile <> "" Then
+        On Error Resume Next
+        addItem LoadPicture(strFile)
+        Changed = True
+    End If
+    'iLst.AddImage LoadPicture(cD1.FileName)
+End Sub
+
+Private Sub ButtRemove_Click()
+    RemoveItem selInd
+    'iLst.RemoveItem selInd
+    'selInd = -1
+    If pcContainer.Width < pcMain.Width Then
+        pcContainer.Left = 0
+    ElseIf pcContainer.Left < 0 Then
+        pcContainer.Left = pcContainer.Left + itmIMG(0).Width
+    End If
+    If pcContainer.Left > 0 Then pcContainer.Left = 0
+    Changed = True
+    If selInd > 0 Then selInd = selInd - 1
+    selectItm selInd
+End Sub
+
+
+Private Sub hSCR_Change()
+    pcContainer.Left = -hSCR.Value
+    pcContainer.SetFocus
+End Sub
+
+Private Sub itmIMG_Click(Index As Integer)
+    selInd = Index
+    selectItm Index
+    txtIndex.Text = Index
+End Sub
+
+Private Sub PropertyPage_ApplyChanges()
+    Dim i As Integer
+    iLst.Clear
+    For i = 0 To mCount - 1
+        iLst.AddImage pcTMP(i).Picture
+    Next i
+End Sub
+
+Private Sub PropertyPage_SelectionChanged()
+    Dim i As Integer
+    mCount = 0
+    mX = 0
+    selInd = -1
+    If TypeOf SelectedControls(0) Is ImageList Then
+        If iLst Is Nothing Then
+            GoTo LoadProperties
+        'ElseIf iLst.hWnd <> SelectedControls(0).hWnd Then
+           ' GoTo LoadProperties
+        End If
+    End If
+    Exit Sub
+LoadProperties:
+    Set iLst = SelectedControls(0)
+    For i = 0 To iLst.ImageCount - 1
+        addItem iLst.getOriginalImage(i)
+    Next i
+End Sub
+
+
+Private Function addItem(ByVal imgImage As StdPicture)
+    If mCount > 0 Then
+        Load itmIMG(mCount)
+        Load pcTMP(mCount)
+    End If
+    itmIMG(mCount).Visible = True
+    itmIMG(mCount).ZOrder 0
+    itmIMG(mCount).BorderStyle = 0
+    Set itmIMG(mCount).Picture = imgImage
+    Set pcTMP(mCount).Picture = imgImage
+'    pcTMP(mCount).ZOrder 0
+'    pcTMP(mCount).Visible = True
+    itmIMG(mCount).Left = mX
+    mCount = mCount + 1
+    mX = mX + itmIMG(mCount - 1).Width
+    
+    pcContainer.Width = mX
+    
+    If pcContainer.Width > pcMain.Width Then
+        hSCR.Enabled = True
+        hSCR.SmallChange = itmIMG(0).Width
+        hSCR.LargeChange = itmIMG(0).Width
+        hSCR.Max = pcContainer.Width - pcMain.Width
+    Else
+        hSCR.Enabled = False
+    End If
+    
+End Function
+
+Private Function RemoveItem(ByVal itmIndex As Integer)
+    Dim i As Integer, mP As Integer
+    Dim haveItem As Boolean
+    haveItem = False
+    mX = 0
+    If mCount <= 0 Then Exit Function
+    For i = 0 To itmIMG.Count - 1
+        'sort images
+       ' MsgBox i & vbCrLf & mP
+        If i = itmIndex Then
+            mP = i
+            i = i + 1
+            haveItem = True
+        'Else
+           ' mX = mX + itmIMG(i).Width
+        End If
+        
+        If itmIndex = itmIMG.Count - 1 And i = itmIMG.Count Then Exit For
+        If haveItem Then
+            itmIMG(mP).Picture = itmIMG(i).Picture
+            pcTMP(mP).Picture = itmIMG(i).Picture
+            itmIMG(mP).Left = mX
+            mP = mP + 1
+        Else
+            itmIMG(i).Left = mX
+        End If
+        
+        If i <> itmIndex Then mX = mX + itmIMG(i).Width
+        DoEvents
+    Next i
+    'unload last item
+    If haveItem Then
+        If itmIMG.Count - 1 > 0 Then
+            Unload itmIMG(itmIMG.Count - 1)
+            Unload pcTMP(pcTMP.Count - 1)
+            mCount = mCount - 1
+        Else
+            mCount = 0
+            itmIMG(0).Visible = False
+        End If
+    End If
+    
+    pcContainer.Width = mX
+    
+    If pcContainer.Width > pcMain.Width Then
+        hSCR.Enabled = True
+        hSCR.SmallChange = itmIMG(0).Width
+        hSCR.LargeChange = itmIMG(0).Width
+        hSCR.Max = pcContainer.Width - pcMain.Width
+    Else
+        hSCR.Enabled = False
+    End If
+End Function
+
+Private Function selectItm(ByVal iIndex As Integer)
+    On Error GoTo err1
+    Dim i As Integer
+    For i = 0 To itmIMG.Count - 1
+        itmIMG(i).BorderStyle = 0
+    Next i
+    itmIMG(iIndex).BorderStyle = 1
+    txtIndex.Text = iIndex
+err1:
+End Function
+
